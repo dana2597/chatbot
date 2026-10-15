@@ -25,12 +25,13 @@ VECTOR_DIM = 256
 
 def connect():
     if not DATABASE_URL:
-        raise RuntimeError(
-            "DATABASE_URL is missing. Copy .env.example to .env "
-            "and configure it."
-        )
+        raise RuntimeError("DATABASE_URL is missing.")
 
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(
+        DATABASE_URL,
+        connect_timeout=10,
+        options="-c statement_timeout=15000"
+    )
     register_vector(conn)
     return conn
 
