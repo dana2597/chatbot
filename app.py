@@ -63,38 +63,59 @@ def text_to_vector(text):
     return vec
 
 
+
 def split_text(text, max_chars=5000, overlap=300):
-    text = re.sub(r"\s+", " ", text or "").strip()
+    text = re.sub(r"\r\n?", "\n", text or "").strip()
 
     if not text:
         return []
 
+    paragraphs = [
+        re.sub(r"[ \t]+", " ", p).strip()
+        for p in re.split(r"\n\s*\n", text)
+        if p.strip()
+    ]
+
     chunks = []
-    start = 0
+    current = ""
 
-    while start < len(text):
-        end = min(start + max_chars, len(text))
+    for paragraph in paragraphs:
+        pieces = re.split(r"(?<=[.!?])\s+", paragraph)
 
-        if end < len(text):
-            boundary = text.rfind(
-                " ",
-                start + int(max_chars * 0.65),
-                end
+        for piece in pieces:
+            if len(piece) > max_chars:
+                if current:
+                    chunks.append(current)
+                    current = ""
+
+                start = 0
+                while start < len(piece):
+                    end = min(start + max_chars, len(piece))
+                    chunks.append(piece[start:end].strip())
+
+                    if end == len(piece):
+                        break
+
+                    start = end - overlap
+                continue
+
+            candidate = (
+                f"{current}\n\n{piece}".strip()
+                if current else piece
             )
-            if boundary > start:
-                end = boundary
 
-        piece = text[start:end].strip()
+            if len(candidate) <= max_chars:
+                current = candidate
+            else:
+                tail = current[-overlap:] if current and overlap else ""
+                chunks.append(current)
+                current = f"{tail}\n\n{piece}".strip() if tail else piece
 
-        if piece:
-            chunks.append(piece)
-
-        if end >= len(text):
-            break
-
-        start = max(end - overlap, start + 1)
+    if current:
+        chunks.append(current)
 
     return chunks
+
 
 
 def ensure_schema():
